@@ -1,4 +1,4 @@
-import PIL.Image
+import PIL.Image as Image
 import numpy as np
 import PIL
 import albumentations as A
@@ -13,20 +13,21 @@ def getTrainBatchLoader(batch_size: int, prohibit_images_id: list):
     """
     def batchLoader():
         # read root of the working directory
-        ws_dir = pathlib.Path(os["WORKSPACE_DIR"])
+        ws_dir = pathlib.Path(os.environ["WORKSPACE_DIR"])
         # model will receive such images
         MODEL_IMG_SIZE = (256, 256)
 
         # get train images id
         with open(ws_dir / "Pascal-part/train_id.txt", "r") as f:
-            train_ids = set(f.readlines())
-            train_ids = train_ids / set(prohibit_images_id)
+            train_ids = f.readlines()
+            train_ids = set(map(lambda id: id.replace("\n", ""), train_ids))
+            train_ids = train_ids.difference(set(prohibit_images_id))
             train_ids = np.array(list(train_ids))
 
         # augmentations pipeline
 
         # first resize image to one resolution
-        first_resize = A.Resize(300, 300)
+        first_resize = A.Resize(300, 300, p=1)
         # randomly apply pixel-level transformations
         pixel_level = A.Compose([
             A.Blur(p=0.2),
@@ -36,25 +37,27 @@ def getTrainBatchLoader(batch_size: int, prohibit_images_id: list):
         spatial_level = A.Compose([
             A.RandomSizedCrop((100, 300), size=MODEL_IMG_SIZE, p=0.6)
         ])
-        augment = A.Compose([first_resize, pixel_level, spatial_level])
+        final_resize = A.Resize(MODEL_IMG_SIZE[0], MODEL_IMG_SIZE[0], p=1)
+        augment = A.Compose([first_resize, pixel_level, spatial_level, final_resize])
 
         # generate batches
         while True:
             output_imgs = torch.FloatTensor(batch_size, 3, MODEL_IMG_SIZE[0], MODEL_IMG_SIZE[1])
-            output_masks = torch.FloatTensor(batch_size, MODEL_IMG_SIZE[0], MODEL_IMG_SIZE[1])
+            output_masks = torch.LongTensor(batch_size, MODEL_IMG_SIZE[0], MODEL_IMG_SIZE[1])
 
             batch_ids = np.random.choice(train_ids, batch_size, replace=False)
             for i, img_id in enumerate(batch_ids):
                 # read img and mask
-                img = PIL.Image.open(ws_dir / f"Pascal-part/JPEGImages/{img_id}.jpg")
+                img = np.array(Image.open(ws_dir / f"Pascal-part/JPEGImages/{img_id}.jpg"))
                 mask = np.load(ws_dir / f"Pascal-part/gt_masks/{img_id}.npy")
                 # use augmentations
-                transformed = augment(img=img, mask=mask)
-                img = transformed["img"]
+                transformed = augment(image=img, mask=mask)
+                img = transformed["image"]
+                img = np.moveaxis(img, 2, 0)
                 mask = transformed["mask"]
 
                 output_imgs[i] = torch.from_numpy(img).to(dtype=torch.float32)
-                output_masks[i] = torch.from_numpy(mask).to(dtype=torch.float32)
+                output_masks[i] = torch.from_numpy(mask).to(dtype=torch.long)
 
             yield output_imgs, output_masks
     
@@ -70,16 +73,17 @@ class testDataIter:
 
     def __iter__(self):
          # read root of the working directory
-        self._ws_dir = pathlib.Path(os["WORKSPACE_DIR"])
+        self._ws_dir = pathlib.Path(os.environ["WORKSPACE_DIR"])
         # model will receive such images
         self._MODEL_IMG_SIZE = (256, 256)
 
         # get test images id
         with open(self._ws_dir / "Pascal-part/val_id.txt", "r") as f:
             self._validate_ids = f.readlines()
+            self._validate_ids = list(map(lambda id: id.replace("\n", ""), self._validate_ids))
 
         # resize augmentation for model fit
-        self._resize_augment = A.Resize(300, 300)
+        self._resize_augment = A.Resize(self._MODEL_IMG_SIZE[0], self._MODEL_IMG_SIZE[1])
 
         return self
     
@@ -91,20 +95,21 @@ class testDataIter:
         cur_batch_size = min(len(self._validate_ids), self._batch_size)
         # output containers
         output_imgs = torch.FloatTensor(self._batch_size, 3, self._MODEL_IMG_SIZE[0], self._MODEL_IMG_SIZE[1])
-        output_masks = torch.FloatTensor(self._batch_size, self._MODEL_IMG_SIZE[0], self._MODEL_IMG_SIZE[1])
+        output_masks = torch.LongTensor(self._batch_size, self._MODEL_IMG_SIZE[0], self._MODEL_IMG_SIZE[1])
 
         for i in range(cur_batch_size):
             img_id = self._validate_ids[i]
             # read img and mask
-            img = PIL.Image.open(self._ws_dir / f"Pascal-part/JPEGImages/{img_id}.jpg")
+            img = np.array(Image.open(self._ws_dir / f"Pascal-part/JPEGImages/{img_id}.jpg")) 
             mask = np.load(self._ws_dir / f"Pascal-part/gt_masks/{img_id}.npy")
             # use augmentations
-            transformed = self._resize_augment(img=img, mask=mask)
-            img = transformed["img"]
+            transformed = self._resize_augment(image=img, mask=mask)
+            img = transformed["image"]
+            img = np.moveaxis(img, 2, 0)
             mask = transformed["mask"]
 
             output_imgs[i] = torch.from_numpy(img).to(dtype=torch.float32)
-            output_masks[i] = torch.from_numpy(mask).to(dtype=torch.float32)
+            output_masks[i] = torch.from_numpy(mask).to(dtype=torch.long)
 
         # remove output images from queue
         self._validate_ids = self._validate_ids[cur_batch_size:]

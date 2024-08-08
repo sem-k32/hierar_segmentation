@@ -1,4 +1,4 @@
-import PIL
+import PIL.Image as Image
 import numpy as np
 
 import pathlib
@@ -29,16 +29,17 @@ if __name__ == "__main__":
     mean_class_freq = np.zeros(param_dict["num_classes"])
 
     # get train images id
-    ws_dir = pathlib.Path(os["WORKSPACE_DIR"])
+    ws_dir = pathlib.Path(os.environ["WORKSPACE_DIR"])
     with open(ws_dir / "Pascal-part/train_id.txt", "r") as f:
         train_ids = f.readlines()
+        train_ids = list(map(lambda id: id.replace("\n", ""), train_ids))
 
-    imgs_path = pathlib.Path(ws_dir / pathlib.Path("/Pascal-part/JPEGImages"))
-    mask_path = pathlib.Path(ws_dir / pathlib.Path("/Pascal-part/gt_masks"))
+    imgs_path = ws_dir / "Pascal-part/JPEGImages"
+    mask_path = ws_dir / "Pascal-part/gt_masks"
 
     for train_id in train_ids:
-        image = np.array(PIL.Image.open(imgs_path / pathlib.Path(train_id + ".jpg")))
-        mask = np.load(mask_path / pathlib.Path(train_id + ".npy"))
+        image = np.array(Image.open(imgs_path / f"{train_id}.jpg"))
+        mask = np.load(mask_path / f"{train_id}.npy")
 
         if isGreyScale(image):
             grey_img_list.append(train_id)
@@ -49,13 +50,26 @@ if __name__ == "__main__":
     # transform to class weights
     class_weights = 1 / mean_class_freq
 
+    # main segmentation classes
+    classes = {
+        0: "bg",
+        1: "low_hand",
+        2: "torso",
+        3: "low_leg",
+        4: "head",
+        5: "up_leg",
+        6: "up_hand"
+    }
+
     # save results
-    result_dir = pathlib.Path("results/").mkdir(exist_ok=True)
+    result_dir = pathlib.Path("results/")
+    result_dir.mkdir(exist_ok=True)
     results_dict = {
         "grey_img_ids": grey_img_list,
-        "class_weights": class_weights.tolist()
+        "class_weights": class_weights.tolist(),
+        "classes": classes
     }
-    with open(result_dir / pathlib.Path("preprocess.yaml"), "w") as f:
+    with open(result_dir / "preprocess.yaml", "w") as f:
         yaml.dump(results_dict, f)
 
 

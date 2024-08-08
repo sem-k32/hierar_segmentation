@@ -21,7 +21,7 @@ class encoderBlock(nn.Module):
 
         NUM_CONV_LAYS = 3
         CONV_SIZE = (3, 3)
-        pad_size = (conv_size_el - 1 for conv_size_el in CONV_SIZE)
+        pad_size = [(conv_size_el - 1) // 2 for conv_size_el in CONV_SIZE]
         conv_seq = []
         # first conv layer
         conv_seq.append(nn.Conv2d(
@@ -48,17 +48,19 @@ class encoderBlock(nn.Module):
             )
         
         POOL_SIZE = (2, 2)
-        pooling = nn.MaxPool2d(POOL_SIZE)
+        self._pooling = nn.MaxPool2d(POOL_SIZE)
 
         # final transform sequence
-        self._transform_seq = nn.Sequential(conv_seq + [pooling])
+        self._conv_seq = nn.Sequential(*conv_seq)
 
         # container for encoder output, used by decoder
         self.output: torch.Tensor = None
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        self.output = self._transform_seq(x)
-        return torch.clone(self.output)
+        self.output = self._conv_seq(x)
+        x = torch.clone(self.output)
+        x = self._pooling(x)
+        return x
 
 
 class decoderBlock(nn.Module):
@@ -78,9 +80,15 @@ class decoderBlock(nn.Module):
         self._chanels_in = chanels_in
         self._chanels_out = chanels_out
 
+        UPSAMPLE_SCALE = (2, 2)
+        self._upsampling = nn.Upsample(
+            scale_factor=UPSAMPLE_SCALE,
+            mode="bilinear"
+        )
+
         NUM_CONV_LAYS = 3
         CONV_SIZE = (3, 3)
-        pad_size = (conv_size_el - 1 for conv_size_el in CONV_SIZE)
+        pad_size = [(conv_size_el - 1) // 2  for conv_size_el in CONV_SIZE]
         conv_seq = []
         # first conv layer counts encoder output
         conv_seq.append(nn.Conv2d(
@@ -116,17 +124,11 @@ class decoderBlock(nn.Module):
         conv_seq.append(
             nn.ReLU()
         )
-        self._conv_seq = nn.Sequential(conv_seq)
-        
-        UPSAMPLE_SCALE = (2, 2)
-        self._upsampling = nn.Upsample(
-            scale_factor=UPSAMPLE_SCALE,
-            mode="bilinear"
-        )
+        self._conv_seq = nn.Sequential(*(conv_seq))
 
     def forward(self, x: torch.Tensor, encoder_output: torch.Tensor) -> torch.Tensor:
-        upsampled_x = self._upsampling(x)
-        return self._conv_seq(torch.concat([encoder_output, upsampled_x], dim=1))
+        x = self._upsampling(x)
+        return self._conv_seq(torch.concat([encoder_output, x], dim=1))
 
 
 class directSegmentator(nn.Module):
@@ -158,7 +160,7 @@ class directSegmentator(nn.Module):
                 encoderBlock(CHANNELS_START * (2 ** i), CHANNELS_START * (2 ** (i + 1)))
             )
             self._decoder_list.append(
-                encoderBlock(CHANNELS_START * (2 ** (i + 1)), CHANNELS_START * (2 ** i))
+                decoderBlock(CHANNELS_START * (2 ** (i + 1)), CHANNELS_START * (2 ** i))
             )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -166,8 +168,8 @@ class directSegmentator(nn.Module):
         for i in range(len(self._encoder_list)):
             x = self._encoder_list[i](x)
         # decoder stack
-        for i in range(len(self._decoder_list), -1, -1):
-            x = self._decoder_list[i](x)
+        for i in range(len(self._decoder_list) - 1, 0 - 1, -1):
+            x = self._decoder_list[i](x, self._encoder_list[i].output)
             
         return x
         
