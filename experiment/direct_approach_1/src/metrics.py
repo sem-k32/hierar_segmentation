@@ -43,8 +43,8 @@ def Accuracy(prediction: torch.Tensor,
 def gradNorm(model: nn.Module) -> float:
     with torch.no_grad():
         output = 0.
-        for param in model.state_dict().values():
-            output += torch.sum(param ** 2).item()
+        for param in model.parameters():
+            output += torch.sum(param.grad ** 2).item()
 
     return output ** 0.5
 

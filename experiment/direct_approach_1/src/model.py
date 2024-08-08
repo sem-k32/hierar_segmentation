@@ -53,14 +53,12 @@ class encoderBlock(nn.Module):
         # final transform sequence
         self._conv_seq = nn.Sequential(*conv_seq)
 
-        # container for encoder output, used by decoder
-        self.output: torch.Tensor = None
-
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        self.output = self._conv_seq(x)
-        x = torch.clone(self.output)
-        x = self._pooling(x)
-        return x
+        # non-pooled feature map is used by decoder
+        output = self._conv_seq(x)
+        x = self._pooling(torch.clone(output))
+
+        return x, output
 
 
 class decoderBlock(nn.Module):
@@ -164,12 +162,14 @@ class directSegmentator(nn.Module):
             )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        encoder_outputs = []
         # encoder stack
         for i in range(len(self._encoder_list)):
-            x = self._encoder_list[i](x)
+            x, encoder_out = self._encoder_list[i](x)
+            encoder_outputs.append(encoder_out)
         # decoder stack
         for i in range(len(self._decoder_list) - 1, 0 - 1, -1):
-            x = self._decoder_list[i](x, self._encoder_list[i].output)
+            x = self._decoder_list[i](x, encoder_outputs[i])
             
         return x
         

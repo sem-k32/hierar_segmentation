@@ -6,6 +6,7 @@ import numpy as np
 from torch.utils.tensorboard import SummaryWriter
 import yaml
 import pathlib
+import gc
 from tqdm import tqdm
 
 from src import metrics
@@ -30,7 +31,7 @@ def logValidateMetrics(
     val_accuracy = 0
     num_batches = 0
 
-    for val_img, val_masks in valid_loader:
+    for val_img, val_masks in tqdm(valid_loader, desc="Validation", leave=False):
         val_img = val_img.to(device)
         val_masks = val_masks.to(device)
 
@@ -50,6 +51,7 @@ def logValidateMetrics(
                         ).mean().item()
 
         num_batches += 1
+
     val_loss /= num_batches
     val_mIoU /= num_batches
     val_accuracy /= num_batches
@@ -112,10 +114,15 @@ if __name__ == "__main__":
         model.train()
         model_probs: torch.Tensor = model(imgs)
 
+        # try save cuda memory
+        del imgs
+        gc.collect()
+
+        optimizer.zero_grad()
+
         batch_loss = functional(model_probs, target_mask)
         batch_loss.backward()
 
-        optimizer.zero_grad()
         optimizer.step()
         lr_sched.step()
 
@@ -147,6 +154,9 @@ if __name__ == "__main__":
                 with open(result_dir / pathlib.Path("model.pkl"), "wb") as f:
                     torch.save(model.state_dict(), f)
 
+        # debug
+        epoch_iter.set_description(f"Loss: {batch_loss.item()}")
+
     # last backup model
     with open(result_dir / pathlib.Path("model.pkl"), "wb") as f:
         torch.save(model.state_dict(), f)
@@ -160,7 +170,7 @@ if __name__ == "__main__":
     model_mask = model(imgs.detach().to(device)).argmax(dim=1)
     for i in range(param_dict["viz_examples"]):
         fig, ax = vizualizeSegmentation(
-            np.moveaxis(imgs[i].cpu().numpy(), 0, 2).astype(np.int32),
+            np.moveaxis(imgs[i].numpy(), 0, 2).astype(np.int32),
             model_mask[i].cpu().numpy(),
             preprocess_res["classes"]
         )
