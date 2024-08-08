@@ -1,0 +1,13 @@
+batch_size: 64
+max_epochs: 5
+
+lr: 1e-3
+momentum: 0.1
+grad_smooth: 0.9
+l2_pen: 1e-2
+
+model:
+  num_levels: 5
+num_classes: 7
+
+validate_period: 2

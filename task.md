@@ -8,7 +8,7 @@
 ### Данные
 
 Обучение модели предлагается производить на датасете Pascal-part.
-Подготовленные данные и разметку можно загрузить по следующей [ссылке](https://drive.google.com/file/d/1unIkraozhmsFtkfneZVhw8JMOQ8jv78J/view?usp=sharing).
+Подготовленные данные и разметку можно загрузить по следующей [ссылке](https://drive.google.com/file/d/1unIkraozhmsJPEGImagesFtkfneZVhw8JMOQ8jv78J/view?usp=sharing).
 
 В папке `JPEGImages` находятся исходные изображения в формате jpeg. В папке `gt_masks` находятся маски сегментации в формате numpy.
 Загрузить маски можно при помощи функции `numpy.load()`.
