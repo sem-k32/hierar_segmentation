@@ -162,12 +162,14 @@ if __name__ == "__main__":
         torch.save(model.state_dict(), f)
 
     # last log validate metrics
-    logValidateMetrics(param_dict["max_epochs"], model, device, functional, valid_loader, writer)
+    with torch.no_grad():
+        logValidateMetrics(param_dict["max_epochs"], model, device, functional, valid_loader, writer)
 
     # vizualize segmentation on several examples on test
-    model.eval()
-    imgs, _ = next(iter(valid_loader))
-    model_mask = model(imgs.detach().to(device)).argmax(dim=1)
+    with torch.no_grad():
+        model.eval()
+        imgs, _ = next(iter(valid_loader))
+        model_mask = model(imgs.detach().to(device)).argmax(dim=1)
     for i in range(param_dict["viz_examples"]):
         fig, ax = vizualizeSegmentation(
             np.moveaxis(imgs[i].numpy(), 0, 2).astype(np.int32),
