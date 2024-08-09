@@ -47,8 +47,6 @@ if __name__ == "__main__":
         for i in range(param_dict["num_classes"]):
             mean_class_freq[i] += np.mean(mask == i)
     mean_class_freq /= len(train_ids)
-    # transform to class weights
-    class_weights = 1 / mean_class_freq
 
     # main segmentation classes
     classes = {
@@ -66,7 +64,7 @@ if __name__ == "__main__":
     result_dir.mkdir(exist_ok=True)
     results_dict = {
         "grey_img_ids": grey_img_list,
-        "class_weights": class_weights.tolist(),
+        "class_freq": mean_class_freq.tolist(),
         "classes": classes
     }
     with open(result_dir / "preprocess.yaml", "w") as f:

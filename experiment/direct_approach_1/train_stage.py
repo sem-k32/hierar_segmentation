@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
+from matplotlib import pyplot as plt
+import matplotlib as mpl
 
 from torch.utils.tensorboard import SummaryWriter
 import yaml
@@ -14,6 +16,16 @@ from src.model import directSegmentator
 from src.data_loader import getTrainBatchLoader, testDataIter
 from src.vizualize import vizualizeSegmentation
 
+
+def getClassesWeights(preprocess_res: dict, params_dict: dict) -> torch.Tensor:
+    """strategy for class weightening
+    """
+    # non-bg classes are equally important (importance = 1)
+    class_weights = torch.ones(len(preprocess_res["class_freq"]), dtype=torch.float32)
+    # bg class is some times less important
+    class_weights[0] = 1 / 10
+
+    return class_weights
 
 def logValidateMetrics(
         epoch: int,
@@ -60,6 +72,21 @@ def logValidateMetrics(
     writer.add_scalar("Validate/mIoU", val_mIoU, epoch)
     writer.add_scalar("Validate/accuracy", val_accuracy, epoch)
 
+    # vizualize segmentation on several examples on test
+    with torch.no_grad():
+        model.eval()
+        imgs, _ = next(iter(valid_loader))
+        model_mask = model(imgs.detach().to(device)).argmax(dim=1)
+    for i in range(param_dict["viz_examples"]):
+        fig, ax = vizualizeSegmentation(
+            np.moveaxis(imgs[i].numpy(), 0, 2).astype(np.int32),
+            model_mask[i].cpu().numpy(),
+            preprocess_res["classes"]
+        )
+        ax.set_title(f"Test example {i}")
+
+        writer.add_figure(f"Test/segmentation/expl_{i}", fig, epoch)
+
 
 if __name__ == "__main__":
     # load params
@@ -89,7 +116,7 @@ if __name__ == "__main__":
 
     # functional to optimize with class weights and l2 penalty(set in optimizer)
     functional = nn.CrossEntropyLoss(
-        weight=torch.FloatTensor(preprocess_res["class_weights"]).to(device)
+        weight=getClassesWeights(preprocess_res, param_dict).to(device)
     )
 
     # batched data loaders
@@ -105,7 +132,7 @@ if __name__ == "__main__":
     writer = SummaryWriter(result_dir / "metrics/")
 
     # training cycle
-    epoch_iter = tqdm(range(param_dict["max_epochs"]), desc="Loss: -", leave=False)
+    epoch_iter = tqdm(range(param_dict["max_epochs"]), desc="Loss: -")
     for epoch in epoch_iter:
         imgs, target_mask = next(train_loader)
         imgs = imgs.to(device)
@@ -164,20 +191,6 @@ if __name__ == "__main__":
     # last log validate metrics
     with torch.no_grad():
         logValidateMetrics(param_dict["max_epochs"], model, device, functional, valid_loader, writer)
-
-    # vizualize segmentation on several examples on test
-    with torch.no_grad():
-        model.eval()
-        imgs, _ = next(iter(valid_loader))
-        model_mask = model(imgs.detach().to(device)).argmax(dim=1)
-    for i in range(param_dict["viz_examples"]):
-        fig, ax = vizualizeSegmentation(
-            np.moveaxis(imgs[i].numpy(), 0, 2).astype(np.int32),
-            model_mask[i].cpu().numpy(),
-            preprocess_res["classes"]
-        )
-        ax.set_title(f"Test example {i}")
-        writer.add_figure(f"Test/segmentation/expl_{i}", fig, param_dict["max_epochs"])
 
     writer.close() 
 

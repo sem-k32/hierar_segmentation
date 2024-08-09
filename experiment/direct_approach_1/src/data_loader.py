@@ -89,19 +89,22 @@ class testDataIter:
     
     def __next__(self) -> tuple[torch.Tensor]:
         if len(self._validate_ids) == 0:
-            raise StopIteration
+            raise StopIteration()
         
         # compute batch size
         cur_batch_size = min(len(self._validate_ids), self._batch_size)
         # output containers
-        output_imgs = torch.FloatTensor(self._batch_size, 3, self._MODEL_IMG_SIZE[0], self._MODEL_IMG_SIZE[1])
-        output_masks = torch.LongTensor(self._batch_size, self._MODEL_IMG_SIZE[0], self._MODEL_IMG_SIZE[1])
+        output_imgs = torch.empty((cur_batch_size, 3, self._MODEL_IMG_SIZE[0], self._MODEL_IMG_SIZE[1]), 
+                                  dtype=torch.float32)
+        output_masks = torch.empty((cur_batch_size, self._MODEL_IMG_SIZE[0], self._MODEL_IMG_SIZE[1]),
+                                   dtype=torch.long)
 
         for i in range(cur_batch_size):
             img_id = self._validate_ids[i]
             # read img and mask
             img = np.array(Image.open(self._ws_dir / f"Pascal-part/JPEGImages/{img_id}.jpg")) 
             mask = np.load(self._ws_dir / f"Pascal-part/gt_masks/{img_id}.npy")
+
             # use augmentations
             transformed = self._resize_augment(image=img, mask=mask)
             img = transformed["image"]

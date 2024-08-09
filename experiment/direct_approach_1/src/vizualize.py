@@ -9,15 +9,15 @@ def vizualizeSegmentation(img: np.ndarray, segm_mask: np.ndarray, classes: dict)
     ax.imshow(img)
 
     # make colorbar
-    cmap = mpl.cm.hsv
+    cmap = mpl.cm.nipy_spectral
     bounds = list(range(len(classes) + 1))
     norm =  mpl.colors.BoundaryNorm(bounds, cmap.N, extend="both")
     # draw mask
     ax.imshow(
         segm_mask,
-        cmap="hsv",
+        cmap=cmap,
         norm=norm,
-        alpha=0.3
+        alpha=0.5
     )
     # draw colorbar
     colorbar = fig.colorbar(
