@@ -1,0 +1,24 @@
+batch_size: 20
+max_epochs: 2
+lr: 3.0e-2
+momentum: 0.2
+grad_smooth: 0.9
+l2_pen: 1.0e-2
+
+model:
+  num_levels: 5
+  num_conv_layers: 3
+  kernal_size:
+    - 3
+    - 3
+  inter_img_size:
+    - 300
+    - 300
+  final_img_size:
+    - 256
+    - 256
+
+validate_period: 100
+
+# should be less then batch size
+viz_examples: 10
