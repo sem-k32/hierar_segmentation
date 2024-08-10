@@ -96,7 +96,7 @@ def getTrainDataLoader():
     # 
     spatial_level = A.Compose([
         # does not consider bg class
-        A.CropNonEmptyMaskIfExists(150, 150, p=0.6)
+        A.CropNonEmptyMaskIfExists(100, 100, p=0.2)
     ])
     final_resize = A.Resize(*param_dict["model"]["final_img_size"], p=1)
     augment = A.Compose([final_resize])

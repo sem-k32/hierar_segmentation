@@ -141,9 +141,9 @@ class directSegmentator(nn.Module):
         """
         super().__init__()
 
-        self._first_pool = nn.MaxPool2d((8, 8))
+        self._first_pool = nn.MaxPool2d((4, 4))
         self._last_upsampling = nn.Upsample(
-            scale_factor=(8, 8),
+            scale_factor=(4, 4),
             mode="bilinear"
         )
 
