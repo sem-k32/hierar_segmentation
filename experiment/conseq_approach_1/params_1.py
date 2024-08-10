@@ -40,12 +40,12 @@ def getClassesWeights() -> torch.Tensor:
     
     # define class weights based on classes freqs
 
-    # # bg
-    # class_weights[0] = 1 / preproc_dict["class_freq"][0]
-    # # human
-    # class_weights[1] = 1 / (1 - preproc_dict["class_freq"][0])
-    class_weights[1] = 1
-    class_weights[0] = 1 / 10
+    # bg
+    class_weights[0] = 1 / preproc_dict["class_freq"][0]
+    # human
+    class_weights[1] = 1 / (1 - preproc_dict["class_freq"][0])
+    # class_weights[1] = 1
+    # class_weights[0] = 1 / 5
 
     return class_weights
 
@@ -81,10 +81,10 @@ def getTrainDataLoader():
         preproc_dict["grey_img_ids"]
     )
 
-def getImgsToViz(num):
+def getImgsToViz(num_exmpls: int) -> torch.Tensor:
     val_loader = getValDataLoader()
     
-    return val_loader.generateBatch()[:num]
+    return val_loader.generateBatch()[0][:num_exmpls]
 
 
 def getValDataLoader():

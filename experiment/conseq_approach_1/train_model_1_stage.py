@@ -46,7 +46,10 @@ if __name__ == "__main__":
         momentum=param_dict["momentum"],
         weight_decay=param_dict["l2_pen"]
     )
-    lr_sched = optim.lr_scheduler.LambdaLR(optimizer, lambda epoch: param_dict["lr"])
+    lr_sched = optim.lr_scheduler.LambdaLR(
+        optimizer, 
+        lambda epoch: param_dict["lr"] / np.sqrt(epoch + 1)
+    )
 
     # functional to optimize with class weights and l2 penalty(set in optimizer)
     functional = nn.CrossEntropyLoss(
