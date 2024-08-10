@@ -14,12 +14,12 @@ from tqdm import tqdm
 from src import metrics
 from model import directSegmentator
 from src.data_loader import prohibitBatchDataGetter, batchDataGetter
-from params_1 import *
+from params_2 import *
 
 
 if __name__ == "__main__":
     # load params
-    with open("params_1.yaml", "r") as f:
+    with open("params_2.yaml", "r") as f:
         param_dict = yaml.full_load(f)
     # load preprocess results
     with open("results/preprocess.yaml", "r") as f:
@@ -30,9 +30,10 @@ if __name__ == "__main__":
     torch.cuda.empty_cache()
 
     # create model
+    # it does not predict bg class
     model = directSegmentator( 
         param_dict["model"]["num_levels"], 
-        len(param_dict["classes"]),
+        len(param_dict["classes"]) - 1,
         param_dict["model"]["kernal_size"],
         param_dict["model"]["num_conv_layers"],
     )
@@ -48,12 +49,14 @@ if __name__ == "__main__":
     )
     lr_sched = optim.lr_scheduler.LambdaLR(
         optimizer, 
-        lambda epoch: param_dict["lr"] / np.sqrt(epoch + 1)
+        lambda epoch: param_dict["lr"]
     )
 
     # functional to optimize with class weights and l2 penalty(set in optimizer)
+    # bg class is not considered
     functional = nn.CrossEntropyLoss(
-        weight=getClassesWeights().to(device)
+        weight=getClassesWeights().to(device),
+        ignore_index=0
     )
 
     # batched data loaders
@@ -64,8 +67,8 @@ if __name__ == "__main__":
     result_dir = pathlib.Path("results/")
     # metrics writer
     writer = SummaryWriter(result_dir / "metrics/")
-    # val images to vizaulize
-    imgs_to_viz = getImgsToViz(param_dict["viz_examples"])
+    # val images/masks to vizaulize
+    imgs_to_viz, masks_viz = getImgsMasksToViz(param_dict["viz_examples"])
 
     # training cycle
     epoch_iter = tqdm(range(param_dict["max_epochs"]), desc="Loss: -")
@@ -92,45 +95,44 @@ if __name__ == "__main__":
         with torch.no_grad():
             # log train metrics
 
-            writer.add_scalar("model_1/Train/loss", batch_loss.item(), epoch)
-            writer.add_scalar("model_1/Train/grad_norm", metrics.gradNorm(model), epoch)
+            writer.add_scalar(f"{param_dict["model"]["name"]}/Train/loss", batch_loss.item(), epoch)
+            writer.add_scalar(f"{param_dict["model"]["name"]}/Train/grad_norm", metrics.gradNorm(model), epoch)
 
             batch_mIoU = metrics.mIoU(
-                model_probs.argmax(dim=1),
+                model_probs.argmax(dim=1) + 1,
                 target_mask,
                 list(param_dict["classes"].keys()),
-                device
+                device,
+                leave_bg=True
             ).mean().item()
-            writer.add_scalar("model_1/Train/mIoU", batch_mIoU, epoch)
+            writer.add_scalar(f"{param_dict["model"]["name"]}/Train/mIoU", batch_mIoU, epoch)
 
             batch_accuracy = metrics.Accuracy(
-                model_probs.argmax(dim=1),
+                model_probs.argmax(dim=1) + 1,
                 target_mask,
                 list(param_dict["classes"].keys()),
-                device
+                device,
+                leave_bg=True
             ).mean().item()
             writer.add_scalar("Train/accuracy", batch_accuracy, epoch)
 
             if epoch % param_dict["validate_period"] == 0:
                 # log validate metrics
-                logValMetrics(epoch, model, device, functional, valid_loader, imgs_to_viz, writer)
+                logValMetrics(epoch, model, device, functional, valid_loader, imgs_to_viz, masks_viz, writer)
 
                 # backup model
-                with open(result_dir / pathlib.Path("model.pkl"), "wb") as f:
+                with open(result_dir / f"{param_dict["model"]["name"]}.pkl", "wb") as f:
                     torch.save(model.state_dict(), f)
 
         # debug
         epoch_iter.set_description(f"Loss: {batch_loss.item()}")
 
     # last backup model
-    with open(result_dir / pathlib.Path("model.pkl"), "wb") as f:
+    with open(result_dir / f"{param_dict["model"]["name"]}.pkl", "wb") as f:
         torch.save(model.state_dict(), f)
 
     # last log validate metrics
     with torch.no_grad():
-        logValMetrics(param_dict["max_epochs"], model, device, functional, valid_loader, imgs_to_viz, writer)
+        logValMetrics(param_dict["max_epochs"], model, device, functional, valid_loader, imgs_to_viz, masks_viz, writer)
 
     writer.close() 
-
-
-

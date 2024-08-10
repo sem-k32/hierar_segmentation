@@ -10,6 +10,7 @@ import os
 import yaml
 from tqdm import tqdm
 import pathlib
+import pickle
 
 from src import metrics
 from src.data_loader import prohibitBatchDataGetter
@@ -18,13 +19,32 @@ from src.vizualize import vizualizeSegmentation
 
 class myProhibitBatchDataGetter(prohibitBatchDataGetter):
     def __init__(self, batch_size: int, final_img_size: tuple[int], img_ids_path: pathlib.Path, augment: A.Compose, prohibit_img_ids: list | None = None) -> None:
-        """ every mask is additionally transformed to bg/human classes only
+        """ every mask is transformed to bg/upper_body/lower_body classes only
+            bg pixels on images are zeroed
         """
         super().__init__(batch_size, final_img_size, img_ids_path, augment, prohibit_img_ids)
 
+        # load params
+        with open("params_1.yaml", "r") as f:
+            param_dict = yaml.full_load(f)
+        self._lower_body_classes = param_dict["lower_body_classes"]
+        self._upper_body_classes = param_dict["upper_body_classes"]
+
     def _getBatch(self, batch_ids: list):
         output_imgs, output_masks = super()._getBatch(batch_ids)
-        output_masks = (output_masks != 0).to(dtype=torch.long)
+
+        # transform mask
+        def maskTransform(el):
+            if el == 0:
+                return el
+            if el in self._upper_body_classes:
+                return 1
+            else:
+                return 2
+        output_masks.apply_(maskTransform)
+
+        # transform imgs
+        output_imgs[output_masks == 0] = 0.0
 
         return output_imgs, output_masks
 
@@ -32,20 +52,32 @@ class myProhibitBatchDataGetter(prohibitBatchDataGetter):
 def getClassesWeights() -> torch.Tensor:
     """strategy for class weightening
     """
+    # load params
+    with open("params_1.yaml", "r") as f:
+        param_dict = yaml.full_load(f)
     # load preprocess results
     with open("results/preprocess.yaml", "r") as f:
         preproc_dict = yaml.full_load(f)
+    # load classes
+    with open(os.environ["DATA_DIR"] + "/classes.pkl", "rb") as f:
+        classes: dict = pickle.load(f)
 
-    class_weights = torch.empty(2, dtype=torch.float32)
+    class_weights = torch.empty(3, dtype=torch.float32)
     
     # define class weights based on classes freqs
-
-    # bg
-    class_weights[0] = 1 / preproc_dict["class_freq"][0]
-    # human
-    class_weights[1] = 1 / (1 - preproc_dict["class_freq"][0])
-    # class_weights[1] = 1
-    # class_weights[0] = 1 / 5
+    # bg class does not contribute for the model
+    
+    init_classes_freqs = 1 - preproc_dict["class_freq"][0]
+    # upper body
+    upper_body_freq = sum(
+        [preproc_dict["class_freq"][up_body_cl] for up_body_cl in param_dict["upper_body_classes"]]
+    )
+    class_weights[1] = 1 / (upper_body_freq / init_classes_freqs)
+    # lower body
+    lower_body_freq = sum(
+        [preproc_dict["class_freq"][up_body_cl] for up_body_cl in param_dict["lower_body_classes"]]
+    )
+    class_weights[2] = 1 / (lower_body_freq / init_classes_freqs)
 
     return class_weights
 
@@ -61,17 +93,18 @@ def getTrainDataLoader():
 
     # first resize image to one resolution
     first_resize = A.Resize(*param_dict["model"]["inter_img_size"], p=1)
-    # randomly apply pixel-level transformations
+    # randomly apply pixel-level transformations (not used)
     pixel_level = A.Compose([
         A.Blur(p=0.2),
         A.RandomBrightnessContrast(p=0.2)
     ])
     # 
     spatial_level = A.Compose([
-        A.RandomSizedCrop((100, 300), size=param_dict["model"]["final_img_size"], p=0.6)
+        # does not consider bg class
+        A.CropNonEmptyMaskIfExists(200, 200, p=0.6)
     ])
     final_resize = A.Resize(*param_dict["model"]["final_img_size"], p=1)
-    augment = A.Compose([first_resize, pixel_level, spatial_level, final_resize])
+    augment = A.Compose([first_resize, spatial_level, final_resize])
 
     return myProhibitBatchDataGetter(
         param_dict["batch_size"],
@@ -81,11 +114,10 @@ def getTrainDataLoader():
         preproc_dict["grey_img_ids"]
     )
 
-def getImgsToViz(num_exmpls: int) -> torch.Tensor:
+def getImgsMasksToViz(num_exmpls: int) -> torch.Tensor:
     val_loader = getValDataLoader()
     
-    return val_loader.generateBatch()[0][:num_exmpls]
-
+    return val_loader.generateBatch()[0][:num_exmpls], val_loader.generateBatch()[1][:num_exmpls]
 
 def getValDataLoader():
     # load params
@@ -112,6 +144,7 @@ def logValMetrics(
         functional,
         valid_loader,
         img_to_viz: torch.Tensor,
+        img_target_masks: torch.Tensor,
         writer: SummaryWriter
 ) -> None:
     # load params
@@ -134,19 +167,25 @@ def logValMetrics(
         val_masks = val_masks.to(device)
 
         val_probs: torch.Tensor = model(val_img)
+        # target classes start from 1
+        val_ans = val_probs.argmax(dim=1) + 1
 
         val_loss += functional(val_probs, val_masks).item()
+        
+        # do not consider bg class in metrics
         val_mIoU += metrics.mIoU(
-                        val_probs.argmax(dim=1),
+                        val_ans,
                         val_masks,
                         list(param_dict["classes"].keys()),
-                        device
+                        device,
+                        leave_bg=True
                     ).mean().item()
         val_accuracy += metrics.Accuracy(
-                            val_probs.argmax(dim=1),
+                            val_ans,
                             val_masks,
                             list(param_dict["classes"].keys()),
-                            device
+                            device,
+                            leave_bg=True
                         ).mean().item()
 
         num_batches += 1
@@ -155,14 +194,17 @@ def logValMetrics(
     val_mIoU /= num_batches
     val_accuracy /= num_batches
 
-    writer.add_scalar("model_1/Validate/loss", val_loss, epoch)
-    writer.add_scalar("model_1/Validate/mIoU", val_mIoU, epoch)
-    writer.add_scalar("model_1/Validate/accuracy", val_accuracy, epoch)
+    writer.add_scalar(f"{param_dict["model"]["name"]}/Validate/loss", val_loss, epoch)
+    writer.add_scalar(f"{param_dict["model"]["name"]}/Validate/mIoU", val_mIoU, epoch)
+    writer.add_scalar(f"{param_dict["model"]["name"]}/Validate/accuracy", val_accuracy, epoch)
 
     # vizualize segmentation on several examples on test
     with torch.no_grad():
         model.eval()
-        model_mask = model(img_to_viz.detach().to(device)).argmax(dim=1)
+        # target classes start from 1
+        model_mask = model(img_to_viz.detach().to(device)).argmax(dim=1) + 1
+        # set bg pixels, they don't count
+        model_mask[img_target_masks == 0] = 0
     for i in tqdm(range(img_to_viz.shape[0]), desc="Vizualization...", leave=False):
         fig, ax = vizualizeSegmentation(
             np.moveaxis(img_to_viz[i].numpy(), 0, 2).astype(np.int32),
@@ -171,4 +213,4 @@ def logValMetrics(
         )
         ax.set_title(f"Test example {i}")
 
-        writer.add_figure(f"model_1/Validate/segmentation/expl_{i}", fig, epoch)
+        writer.add_figure(f"{param_dict["model"]["name"]}/Validate/segmentation/expl_{i}", fig, epoch)
