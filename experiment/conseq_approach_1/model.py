@@ -26,7 +26,7 @@ class encoderBlock(nn.Module):
                         chanels_out,
                         kernal_size,
                         padding=pad_size,
-                        padding_mode="reflect"
+                        padding_mode="zeros"
         ))
         conv_seq.append(
             nn.ReLU()
@@ -38,7 +38,7 @@ class encoderBlock(nn.Module):
                         chanels_out,
                         kernal_size,
                         padding=pad_size,
-                        padding_mode="reflect"
+                        padding_mode="zeros"
             ))
             conv_seq.append(
                 nn.ReLU()
@@ -88,7 +88,7 @@ class decoderBlock(nn.Module):
                         chanels_in,
                         kernal_size,
                         padding=pad_size,
-                        padding_mode="reflect"
+                        padding_mode="zeros"
         ))
         conv_seq.append(
             nn.ReLU()
@@ -100,7 +100,7 @@ class decoderBlock(nn.Module):
                         chanels_in,
                         kernal_size,
                         padding=pad_size,
-                        padding_mode="reflect"
+                        padding_mode="zeros"
             ))
             conv_seq.append(
                 nn.ReLU()
@@ -111,7 +111,7 @@ class decoderBlock(nn.Module):
                         chanels_out,
                         kernal_size,
                         padding=pad_size,
-                        padding_mode="reflect"
+                        padding_mode="zeros"
         ))
         conv_seq.append(
             nn.ReLU()
@@ -141,6 +141,12 @@ class directSegmentator(nn.Module):
         """
         super().__init__()
 
+        self._first_pool = nn.MaxPool2d((8, 8))
+        self._last_upsampling = nn.Upsample(
+            scale_factor=(8, 8),
+            mode="bilinear"
+        )
+
         self._encoder_list = nn.ModuleList()
         self._decoder_list = nn.ModuleList()
 
@@ -162,6 +168,8 @@ class directSegmentator(nn.Module):
                 num_conv_layers))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self._first_pool(x)
+
         encoder_outputs = []
         # encoder stack
         for i in range(len(self._encoder_list)):
@@ -170,6 +178,8 @@ class directSegmentator(nn.Module):
         # decoder stack
         for i in range(len(self._decoder_list) - 1, 0 - 1, -1):
             x = self._decoder_list[i](x, encoder_outputs[i])
+
+        x = self._last_upsampling(x)
             
         return x
         

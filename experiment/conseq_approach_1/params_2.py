@@ -25,7 +25,7 @@ class myProhibitBatchDataGetter(prohibitBatchDataGetter):
         super().__init__(batch_size, final_img_size, img_ids_path, augment, prohibit_img_ids)
 
         # load params
-        with open("params_1.yaml", "r") as f:
+        with open("params_2.yaml", "r") as f:
             param_dict = yaml.full_load(f)
         self._lower_body_classes = param_dict["lower_body_classes"]
         self._upper_body_classes = param_dict["upper_body_classes"]
@@ -34,17 +34,12 @@ class myProhibitBatchDataGetter(prohibitBatchDataGetter):
         output_imgs, output_masks = super()._getBatch(batch_ids)
 
         # transform mask
-        def maskTransform(el):
-            if el == 0:
-                return el
-            if el in self._upper_body_classes:
-                return 1
-            else:
-                return 2
-        output_masks.apply_(maskTransform)
-
+        for up_body_cl in self._upper_body_classes:
+            output_masks[output_masks == up_body_cl] = 1
+        for low_body_cl in self._lower_body_classes:
+            output_masks[output_masks == low_body_cl] = 2
         # transform imgs
-        output_imgs[output_masks == 0] = 0.0
+        output_imgs[output_masks.unsqueeze(1).repeat(1, 3, 1, 1) == 0] = 0.0
 
         return output_imgs, output_masks
 
@@ -53,7 +48,7 @@ def getClassesWeights() -> torch.Tensor:
     """strategy for class weightening
     """
     # load params
-    with open("params_1.yaml", "r") as f:
+    with open("params_2.yaml", "r") as f:
         param_dict = yaml.full_load(f)
     # load preprocess results
     with open("results/preprocess.yaml", "r") as f:
@@ -62,7 +57,7 @@ def getClassesWeights() -> torch.Tensor:
     with open(os.environ["DATA_DIR"] + "/classes.pkl", "rb") as f:
         classes: dict = pickle.load(f)
 
-    class_weights = torch.empty(3, dtype=torch.float32)
+    class_weights = torch.zeros(3, dtype=torch.float32)
     
     # define class weights based on classes freqs
     # bg class does not contribute for the model
@@ -83,7 +78,7 @@ def getClassesWeights() -> torch.Tensor:
 
 def getTrainDataLoader():
     # load params
-    with open("params_1.yaml", "r") as f:
+    with open("params_2.yaml", "r") as f:
         param_dict = yaml.full_load(f)
     # load preprocess results
     with open("results/preprocess.yaml", "r") as f:
@@ -101,10 +96,10 @@ def getTrainDataLoader():
     # 
     spatial_level = A.Compose([
         # does not consider bg class
-        A.CropNonEmptyMaskIfExists(200, 200, p=0.6)
+        A.CropNonEmptyMaskIfExists(150, 150, p=0.6)
     ])
     final_resize = A.Resize(*param_dict["model"]["final_img_size"], p=1)
-    augment = A.Compose([first_resize, spatial_level, final_resize])
+    augment = A.Compose([final_resize])
 
     return myProhibitBatchDataGetter(
         param_dict["batch_size"],
@@ -115,13 +110,13 @@ def getTrainDataLoader():
     )
 
 def getImgsMasksToViz(num_exmpls: int) -> torch.Tensor:
-    val_loader = getValDataLoader()
+    examples = getValDataLoader().generateBatch()
     
-    return val_loader.generateBatch()[0][:num_exmpls], val_loader.generateBatch()[1][:num_exmpls]
+    return examples[0][:num_exmpls], examples[1][:num_exmpls]
 
 def getValDataLoader():
     # load params
-    with open("params_1.yaml", "r") as f:
+    with open("params_2.yaml", "r") as f:
         param_dict = yaml.full_load(f)
     # load preprocess results
     with open("results/preprocess.yaml", "r") as f:
@@ -148,7 +143,7 @@ def logValMetrics(
         writer: SummaryWriter
 ) -> None:
     # load params
-    with open("params_1.yaml", "r") as f:
+    with open("params_2.yaml", "r") as f:
         param_dict = yaml.full_load(f)
     # load preprocess results
     with open("results/preprocess.yaml", "r") as f:
@@ -167,21 +162,29 @@ def logValMetrics(
         val_masks = val_masks.to(device)
 
         val_probs: torch.Tensor = model(val_img)
-        # target classes start from 1
-        val_ans = val_probs.argmax(dim=1) + 1
 
+        # add dummy bg prob in model answers
+        val_probs = torch.concat(
+            [
+                torch.full([val_probs.shape[0], 1, val_probs.shape[2], val_probs.shape[3]], fill_value=float("-inf"))
+                    .to(dtype=torch.float32, device=device),
+                val_probs
+            ],
+            dim=1
+        )
         val_loss += functional(val_probs, val_masks).item()
+        val_probs = val_probs[:, 1:, ...]
         
         # do not consider bg class in metrics
         val_mIoU += metrics.mIoU(
-                        val_ans,
+                        val_probs.argmax(dim=1) + 1,
                         val_masks,
                         list(param_dict["classes"].keys()),
                         device,
                         leave_bg=True
                     ).mean().item()
         val_accuracy += metrics.Accuracy(
-                            val_ans,
+                            val_probs.argmax(dim=1) + 1,
                             val_masks,
                             list(param_dict["classes"].keys()),
                             device,
@@ -194,9 +197,9 @@ def logValMetrics(
     val_mIoU /= num_batches
     val_accuracy /= num_batches
 
-    writer.add_scalar(f"{param_dict["model"]["name"]}/Validate/loss", val_loss, epoch)
-    writer.add_scalar(f"{param_dict["model"]["name"]}/Validate/mIoU", val_mIoU, epoch)
-    writer.add_scalar(f"{param_dict["model"]["name"]}/Validate/accuracy", val_accuracy, epoch)
+    writer.add_scalar(f'{param_dict["model"]["name"]}/Validate/loss', val_loss, epoch)
+    writer.add_scalar(f'{param_dict["model"]["name"]}/Validate/mIoU', val_mIoU, epoch)
+    writer.add_scalar(f'{param_dict["model"]["name"]}/Validate/accuracy', val_accuracy, epoch)
 
     # vizualize segmentation on several examples on test
     with torch.no_grad():
@@ -213,4 +216,4 @@ def logValMetrics(
         )
         ax.set_title(f"Test example {i}")
 
-        writer.add_figure(f"{param_dict["model"]["name"]}/Validate/segmentation/expl_{i}", fig, epoch)
+        writer.add_figure(f'{param_dict["model"]["name"]}/Validate/segmentation/expl_{i}', fig, epoch)

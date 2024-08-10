@@ -11,6 +11,7 @@ classes:
   1: human
 
 model:
+  name: model_1
   num_levels: 5
   num_conv_layers: 4
   kernal_size:

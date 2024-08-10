@@ -46,10 +46,10 @@ def Accuracy(prediction: torch.Tensor,
 
     output = (prediction == target)
     # consider only given classes
-    relevant_pixels = torch.isin(prediction, torch.LongTensor(classes).to(device))
+    relevant_pixels = torch.isin(target, torch.LongTensor(classes).to(device))
     output = output & relevant_pixels
 
-    return torch.sum(output, dim=(1, 2)) / torch.sum(relevant_pixels, dim=(1, 2))
+    return (torch.sum(output, dim=(1, 2)) + 1e-8) / (torch.sum(relevant_pixels, dim=(1, 2)) + 1e-8)
 
 
 def gradNorm(model: nn.Module) -> float:

@@ -4,6 +4,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
+from matplotlib import pyplot as plt
+import matplotlib as mpl
 
 from torch.utils.tensorboard import SummaryWriter
 import yaml
@@ -80,14 +82,23 @@ if __name__ == "__main__":
         model.train()
         model_probs: torch.Tensor = model(imgs)
 
-        # try save cuda memory
-        del imgs
-        gc.collect()
+        temp1 = model_probs[0, 0]
+        temp2 = model_probs[0, 1]
 
         optimizer.zero_grad()
 
+        # add dummy bg prob in model answers
+        model_probs = torch.concat(
+            [
+                torch.full([model_probs.shape[0], 1, model_probs.shape[2], model_probs.shape[3]], fill_value=float("-inf"))
+                    .to(dtype=torch.float32, device=device),
+                model_probs
+            ],
+            dim=1
+        )
         batch_loss = functional(model_probs, target_mask)
         batch_loss.backward()
+        model_probs = model_probs[:, 1:, ...]
 
         optimizer.step()
         lr_sched.step()
@@ -95,8 +106,8 @@ if __name__ == "__main__":
         with torch.no_grad():
             # log train metrics
 
-            writer.add_scalar(f"{param_dict["model"]["name"]}/Train/loss", batch_loss.item(), epoch)
-            writer.add_scalar(f"{param_dict["model"]["name"]}/Train/grad_norm", metrics.gradNorm(model), epoch)
+            writer.add_scalar(f'{param_dict["model"]["name"]}/Train/loss', batch_loss.item(), epoch)
+            writer.add_scalar(f'{param_dict["model"]["name"]}/Train/grad_norm', metrics.gradNorm(model), epoch)
 
             batch_mIoU = metrics.mIoU(
                 model_probs.argmax(dim=1) + 1,
@@ -105,7 +116,7 @@ if __name__ == "__main__":
                 device,
                 leave_bg=True
             ).mean().item()
-            writer.add_scalar(f"{param_dict["model"]["name"]}/Train/mIoU", batch_mIoU, epoch)
+            writer.add_scalar(f'{param_dict["model"]["name"]}/Train/mIoU', batch_mIoU, epoch)
 
             batch_accuracy = metrics.Accuracy(
                 model_probs.argmax(dim=1) + 1,
@@ -114,21 +125,21 @@ if __name__ == "__main__":
                 device,
                 leave_bg=True
             ).mean().item()
-            writer.add_scalar("Train/accuracy", batch_accuracy, epoch)
+            writer.add_scalar(f'{param_dict["model"]["name"]}/Train/accuracy', batch_accuracy, epoch)
 
             if epoch % param_dict["validate_period"] == 0:
                 # log validate metrics
                 logValMetrics(epoch, model, device, functional, valid_loader, imgs_to_viz, masks_viz, writer)
 
                 # backup model
-                with open(result_dir / f"{param_dict["model"]["name"]}.pkl", "wb") as f:
+                with open(result_dir / f'{param_dict["model"]["name"]}.pkl', "wb") as f:
                     torch.save(model.state_dict(), f)
 
         # debug
         epoch_iter.set_description(f"Loss: {batch_loss.item()}")
 
     # last backup model
-    with open(result_dir / f"{param_dict["model"]["name"]}.pkl", "wb") as f:
+    with open(result_dir / f'{param_dict["model"]["name"]}.pkl', "wb") as f:
         torch.save(model.state_dict(), f)
 
     # last log validate metrics
