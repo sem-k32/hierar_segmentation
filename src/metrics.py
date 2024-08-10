@@ -28,14 +28,13 @@ def mIoU(prediction: torch.Tensor,
 
 
 def Accuracy(prediction: torch.Tensor, 
-             target: torch.Tensor, 
-             device: torch.device, 
-             bg_count: bool = False
+             target: torch.Tensor,  
+             classes: list[int],
+             device: torch.device
 ) -> torch.Tensor:
     output = (prediction == target)
-    # include background or not
-    if not bg_count:
-        output = output & (prediction != 0)
+    # consider only given classes
+    output = output & (torch.isin(prediction, torch.LongTensor(classes).to(device)))
 
     return torch.mean(output.to(dtype=torch.float32), dim=(1, 2))
 

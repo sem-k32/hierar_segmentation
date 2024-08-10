@@ -7,6 +7,7 @@ import torch
 import pathlib
 import os
 from copy import deepcopy
+from typing import Optional
 
 
 class batchDataGetter:
@@ -59,7 +60,7 @@ class batchDataGetter:
         
         return self._getBatch(batch_ids)
 
-    def _getBatch(self, batch_ids: list):
+    def _getBatch(self, batch_ids: list) -> tuple[torch.Tensor]:
         output_imgs = torch.FloatTensor(len(batch_ids), 3, *self._final_img_size)
         output_masks = torch.LongTensor(len(batch_ids), *self._final_img_size)
 
@@ -80,10 +81,10 @@ class batchDataGetter:
 
 
 class prohibitBatchDataGetter(batchDataGetter):
-    def __init__(self, batch_size: int, final_img_size: tuple[int], img_ids_path: pathlib.Path, augment: A.Compose, prohibit_img_ids: list) -> None:
+    def __init__(self, batch_size: int, final_img_size: tuple[int], img_ids_path: pathlib.Path, augment: A.Compose, prohibit_img_ids: Optional[list] = None) -> None:
         super().__init__(batch_size, final_img_size, img_ids_path, augment)
 
         # remove prohibited img ids
-        self._img_ids = np.array(
-            set(self._img_ids.tolist()).difference(set(prohibit_img_ids))
-        )
+        if prohibit_img_ids is not None:
+            self._img_ids = set(self._img_ids.tolist()).difference(set(prohibit_img_ids))
+            self._img_ids = np.array(list(self._img_ids))

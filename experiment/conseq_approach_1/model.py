@@ -152,16 +152,14 @@ class directSegmentator(nn.Module):
         for i in range(num_levels - 1):
             self._encoder_list.append(encoderBlock(
                 CHANNELS_START * (2 ** i), 
-                CHANNELS_START * (2 ** (i + 1), 
+                CHANNELS_START * (2 ** (i + 1)), 
                 kernal_size, 
                 num_conv_layers))
-            )
             self._decoder_list.append(decoderBlock(
                 CHANNELS_START * (2 ** (i + 1)), 
                 CHANNELS_START * (2 ** i), 
                 kernal_size, 
-                num_conv_layers)
-            )
+                num_conv_layers))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         encoder_outputs = []

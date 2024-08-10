@@ -8,6 +8,6 @@ fi
 # preprocessing stage
 echo "Preprocessing stage"
 python preprocessing_stage.py
-# train stage
-echo "Train stage"
-python train_stage.py
+# train model 1 stage
+echo "Train model 1 stage"
+python train_model_1_stage
