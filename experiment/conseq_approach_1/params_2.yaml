@@ -1,5 +1,5 @@
 batch_size: 20
-max_epochs: 1000
+max_epochs: 2000
 lr: 5.0e-3
 momentum: 0.1
 grad_smooth: 0.9
