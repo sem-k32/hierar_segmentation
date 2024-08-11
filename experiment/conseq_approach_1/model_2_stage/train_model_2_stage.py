@@ -69,7 +69,7 @@ if __name__ == "__main__":
     valid_loader = getValDataLoader()
 
     # results dirs
-    result_dir = pathlib.Path("results/")
+    result_dir = pathlib.Path("../results/")
     # metrics writer
     writer = SummaryWriter(result_dir / f"metrics/{param_dict['model']['name']}" / f"{datetime.now()}")
     # val images/masks to vizaulize
