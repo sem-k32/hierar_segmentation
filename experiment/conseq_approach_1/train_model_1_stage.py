@@ -8,11 +8,11 @@ import numpy as np
 from torch.utils.tensorboard import SummaryWriter
 import yaml
 import pathlib
-import gc
 from tqdm import tqdm
+from datetime import datetime
 
 from src import metrics
-from model import directSegmentator
+from experiment.conseq_approach_1.model_1 import directSegmentator
 from src.data_loader import prohibitBatchDataGetter, batchDataGetter
 from params_1 import *
 
@@ -48,7 +48,7 @@ if __name__ == "__main__":
     )
     lr_sched = optim.lr_scheduler.LambdaLR(
         optimizer, 
-        lambda epoch: param_dict["lr"] / np.sqrt(epoch + 1)
+        lambda epoch: param_dict["lr"] if epoch < 750 else param_dict["lr"] / np.sqrt(epoch)
     )
 
     # functional to optimize with class weights and l2 penalty(set in optimizer)
@@ -63,7 +63,7 @@ if __name__ == "__main__":
     # results dirs
     result_dir = pathlib.Path("results/")
     # metrics writer
-    writer = SummaryWriter(result_dir / "metrics/")
+    writer = SummaryWriter(result_dir / f"metrics/{param_dict['model']['name']}" / f"{datetime.now()}")
     # val images to vizaulize
     imgs_to_viz = getImgsToViz(param_dict["viz_examples"])
 
@@ -77,10 +77,6 @@ if __name__ == "__main__":
         model.train()
         model_probs: torch.Tensor = model(imgs)
 
-        # try save cuda memory
-        del imgs
-        gc.collect()
-
         optimizer.zero_grad()
 
         batch_loss = functional(model_probs, target_mask)
@@ -92,8 +88,8 @@ if __name__ == "__main__":
         with torch.no_grad():
             # log train metrics
 
-            writer.add_scalar("model_1/Train/loss", batch_loss.item(), epoch)
-            writer.add_scalar("model_1/Train/grad_norm", metrics.gradNorm(model), epoch)
+            writer.add_scalar("Train/loss", batch_loss.item(), epoch)
+            writer.add_scalar("Train/grad_norm", metrics.gradNorm(model), epoch)
 
             batch_mIoU = metrics.mIoU(
                 model_probs.argmax(dim=1),
@@ -101,7 +97,7 @@ if __name__ == "__main__":
                 list(param_dict["classes"].keys()),
                 device
             ).mean().item()
-            writer.add_scalar("model_1/Train/mIoU", batch_mIoU, epoch)
+            writer.add_scalar("Train/mIoU", batch_mIoU, epoch)
 
             batch_accuracy = metrics.Accuracy(
                 model_probs.argmax(dim=1),
@@ -116,14 +112,14 @@ if __name__ == "__main__":
                 logValMetrics(epoch, model, device, functional, valid_loader, imgs_to_viz, writer)
 
                 # backup model
-                with open(result_dir / pathlib.Path("model.pkl"), "wb") as f:
+                with open(result_dir / pathlib.Path(f"{param_dict['model']['name']}.pkl"), "wb") as f:
                     torch.save(model.state_dict(), f)
 
         # debug
         epoch_iter.set_description(f"Loss: {batch_loss.item()}")
 
     # last backup model
-    with open(result_dir / pathlib.Path("model.pkl"), "wb") as f:
+    with open(result_dir / pathlib.Path(f"{param_dict['model']['name']}.pkl"), "wb") as f:
         torch.save(model.state_dict(), f)
 
     # last log validate metrics

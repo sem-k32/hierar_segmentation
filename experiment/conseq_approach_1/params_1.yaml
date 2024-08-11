@@ -1,5 +1,5 @@
 batch_size: 20
-max_epochs: 1000
+max_epochs: 1500
 lr: 1.0e-2
 momentum: 0.1
 grad_smooth: 0.9
@@ -13,10 +13,10 @@ classes:
 model:
   name: model_1
   num_levels: 5
-  num_conv_layers: 4
+  num_conv_layers: 3
   kernal_size:
-    - 3
-    - 3
+    - 5
+    - 5
   inter_img_size:
     - 300
     - 300

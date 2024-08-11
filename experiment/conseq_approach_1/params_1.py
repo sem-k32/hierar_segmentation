@@ -44,8 +44,6 @@ def getClassesWeights() -> torch.Tensor:
     class_weights[0] = 1 / preproc_dict["class_freq"][0]
     # human
     class_weights[1] = 1 / (1 - preproc_dict["class_freq"][0])
-    # class_weights[1] = 1
-    # class_weights[0] = 1 / 5
 
     return class_weights
 
@@ -155,9 +153,9 @@ def logValMetrics(
     val_mIoU /= num_batches
     val_accuracy /= num_batches
 
-    writer.add_scalar("model_1/Validate/loss", val_loss, epoch)
-    writer.add_scalar("model_1/Validate/mIoU", val_mIoU, epoch)
-    writer.add_scalar("model_1/Validate/accuracy", val_accuracy, epoch)
+    writer.add_scalar("Validate/loss", val_loss, epoch)
+    writer.add_scalar("Validate/mIoU", val_mIoU, epoch)
+    writer.add_scalar("Validate/accuracy", val_accuracy, epoch)
 
     # vizualize segmentation on several examples on test
     with torch.no_grad():
@@ -171,4 +169,4 @@ def logValMetrics(
         )
         ax.set_title(f"Test example {i}")
 
-        writer.add_figure(f"model_1/Validate/segmentation/expl_{i}", fig, epoch)
+        writer.add_figure(f"Validate/segmentation/expl_{i}", fig, epoch)

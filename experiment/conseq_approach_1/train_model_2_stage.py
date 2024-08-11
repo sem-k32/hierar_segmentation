@@ -14,7 +14,7 @@ import gc
 from tqdm import tqdm
 
 from src import metrics
-from model import directSegmentator
+from experiment.conseq_approach_1.model_1 import directSegmentator
 from src.data_loader import prohibitBatchDataGetter, batchDataGetter
 from params_2 import *
 
