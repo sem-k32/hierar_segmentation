@@ -23,6 +23,8 @@ model:
   final_img_size:
     - 256
     - 256
+  encoder_dropout_p: 0.05
+  leaky_relu_slope: 0.05
 
 validate_period: 100
 

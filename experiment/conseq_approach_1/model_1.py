@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 
+import yaml
+
 
 class encoderBlock(nn.Module):
     def __init__(
@@ -18,7 +20,10 @@ class encoderBlock(nn.Module):
         """
         super().__init__()
 
-        RELU_SLOPE = 0.05
+        # load params
+        with open("params_1.yaml", "r") as f:
+            param_dict = yaml.full_load(f)
+
         pad_size = [(conv_size_el - 1) // 2 for conv_size_el in kernal_size]
         conv_seq = []
         # first conv layer
@@ -30,7 +35,7 @@ class encoderBlock(nn.Module):
                         padding_mode="reflect"
         ))
         conv_seq.append(
-            nn.LeakyReLU(RELU_SLOPE)
+            nn.LeakyReLU(param_dict["model"]["leaky_relu_slope"])
         )
         # rest conv layers
         for _ in range(num_conv_layers - 1):
@@ -42,14 +47,14 @@ class encoderBlock(nn.Module):
                         padding_mode="reflect"
             ))
             conv_seq.append(
-                nn.LeakyReLU(RELU_SLOPE)
+                nn.LeakyReLU(param_dict["model"]["leaky_relu_slope"])
             )
         self._conv_seq = nn.Sequential(*conv_seq)
         
         POOL_SIZE = (2, 2)
         self._pooling = nn.MaxPool2d(POOL_SIZE)
 
-        self._dropout = nn.Dropout2d(p=0.05)
+        self._dropout = nn.Dropout2d(param_dict["model"]["encoder_dropout_p"])
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # non-pooled feature map is used by decoder
