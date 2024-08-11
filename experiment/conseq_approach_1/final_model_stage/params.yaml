@@ -1,0 +1,7 @@
+model:
+  name: hierar_seg
+  input_img_size:
+    - 256
+    - 256
+
+viz_examples: 50

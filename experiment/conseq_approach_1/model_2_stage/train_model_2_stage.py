@@ -56,7 +56,7 @@ if __name__ == "__main__":
     )
     lr_sched = optim.lr_scheduler.LambdaLR(
         optimizer, 
-        lambda epoch: param_dict["lr"] if epoch < 750 else param_dict["lr"] / np.sqrt(epoch)
+        lambda epoch: param_dict["lr"] if epoch <= 750 else param_dict["lr"] / (np.sqrt(epoch) - 750)
     )
 
     # functional to optimize with class weights and l2 penalty(set in optimizer)

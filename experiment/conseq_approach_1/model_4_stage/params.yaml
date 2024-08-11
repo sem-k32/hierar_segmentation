@@ -1,23 +1,21 @@
-batch_size: 20
+batch_size: 30
 max_epochs: 1500
 lr: 1.0e-2
 momentum: 0.1
 grad_smooth: 0.9
 l2_pen: 1.0e-3
 
-# on this stage classes are only upper body
+# on this stage classes are only lower_body
 # bg class is not considered
 classes:
   0: bg
-  1: low_hand
-  2: torso
-  3: head
-  4: up_hand
+  1: low_leg
+  2: up_leg
 
-irrelative_pix_threshold: 50
+irrelative_pix_threshold: 70
 
 model:
-  name: model_3
+  name: model_4
   num_levels: 4
   num_conv_layers: 3
   kernal_size:
