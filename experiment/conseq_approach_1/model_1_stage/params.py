@@ -38,7 +38,7 @@ def getClassesWeights() -> torch.Tensor:
     with open(result_dir / "preprocess.yaml", "r") as f:
         preproc_dict = yaml.full_load(f)
 
-    class_weights = torch.empty(2, dtype=torch.float32)
+    class_weights = torch.empty(len(param_dict["classes"]), dtype=torch.float32)
     
     # define class weights based on classes freqs
 

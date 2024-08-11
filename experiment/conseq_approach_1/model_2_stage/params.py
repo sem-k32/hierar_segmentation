@@ -59,7 +59,7 @@ def getClassesWeights() -> torch.Tensor:
     with open(os.environ["DATA_DIR"] + "/classes.pkl", "rb") as f:
         classes: dict = pickle.load(f)
 
-    class_weights = torch.zeros(3, dtype=torch.float32)
+    class_weights = torch.zeros(len(param_dict["classes"]), dtype=torch.float32)
     
     # define class weights based on classes freqs
     # bg class does not contribute for the model
