@@ -12,9 +12,10 @@ import yaml
 import pathlib
 import gc
 from tqdm import tqdm
+from datetime import datetime
 
 from src import metrics
-from experiment.conseq_approach_1.model_1 import directSegmentator
+from model_2 import directSegmentator
 from src.data_loader import prohibitBatchDataGetter, batchDataGetter
 from params_2 import *
 
@@ -38,6 +39,8 @@ if __name__ == "__main__":
         len(param_dict["classes"]) - 1,
         param_dict["model"]["kernal_size"],
         param_dict["model"]["num_conv_layers"],
+        param_dict["model"]["encoder_dropout_p"],
+        param_dict["model"]["leaky_relu_slope"]
     )
     model.to(device)
 
@@ -51,7 +54,7 @@ if __name__ == "__main__":
     )
     lr_sched = optim.lr_scheduler.LambdaLR(
         optimizer, 
-        lambda epoch: param_dict["lr"]
+        lambda epoch: param_dict["lr"] if epoch < 750 else param_dict["lr"] / np.sqrt(epoch)
     )
 
     # functional to optimize with class weights and l2 penalty(set in optimizer)
@@ -68,7 +71,7 @@ if __name__ == "__main__":
     # results dirs
     result_dir = pathlib.Path("results/")
     # metrics writer
-    writer = SummaryWriter(result_dir / "metrics/")
+    writer = SummaryWriter(result_dir / f"metrics/{param_dict['model']['name']}" / f"{datetime.now()}")
     # val images/masks to vizaulize
     imgs_to_viz, masks_viz = getImgsMasksToViz(param_dict["viz_examples"])
 
@@ -81,9 +84,6 @@ if __name__ == "__main__":
 
         model.train()
         model_probs: torch.Tensor = model(imgs)
-
-        temp1 = model_probs[0, 0]
-        temp2 = model_probs[0, 1]
 
         optimizer.zero_grad()
 
@@ -106,8 +106,8 @@ if __name__ == "__main__":
         with torch.no_grad():
             # log train metrics
 
-            writer.add_scalar(f'{param_dict["model"]["name"]}/Train/loss', batch_loss.item(), epoch)
-            writer.add_scalar(f'{param_dict["model"]["name"]}/Train/grad_norm', metrics.gradNorm(model), epoch)
+            writer.add_scalar('Train/loss', batch_loss.item(), epoch)
+            writer.add_scalar('Train/grad_norm', metrics.gradNorm(model), epoch)
 
             batch_mIoU = metrics.mIoU(
                 model_probs.argmax(dim=1) + 1,
@@ -116,7 +116,7 @@ if __name__ == "__main__":
                 device,
                 leave_bg=True
             ).mean().item()
-            writer.add_scalar(f'{param_dict["model"]["name"]}/Train/mIoU', batch_mIoU, epoch)
+            writer.add_scalar('Train/mIoU', batch_mIoU, epoch)
 
             batch_accuracy = metrics.Accuracy(
                 model_probs.argmax(dim=1) + 1,
@@ -125,7 +125,7 @@ if __name__ == "__main__":
                 device,
                 leave_bg=True
             ).mean().item()
-            writer.add_scalar(f'{param_dict["model"]["name"]}/Train/accuracy', batch_accuracy, epoch)
+            writer.add_scalar('Train/accuracy', batch_accuracy, epoch)
 
             if epoch % param_dict["validate_period"] == 0:
                 # log validate metrics

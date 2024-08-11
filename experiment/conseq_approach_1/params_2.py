@@ -173,6 +173,7 @@ def logValMetrics(
             dim=1
         )
         val_loss += functional(val_probs, val_masks).item()
+        # remove dummy bg prob
         val_probs = val_probs[:, 1:, ...]
         
         # do not consider bg class in metrics
@@ -197,16 +198,16 @@ def logValMetrics(
     val_mIoU /= num_batches
     val_accuracy /= num_batches
 
-    writer.add_scalar(f'{param_dict["model"]["name"]}/Validate/loss', val_loss, epoch)
-    writer.add_scalar(f'{param_dict["model"]["name"]}/Validate/mIoU', val_mIoU, epoch)
-    writer.add_scalar(f'{param_dict["model"]["name"]}/Validate/accuracy', val_accuracy, epoch)
+    writer.add_scalar('Validate/loss', val_loss, epoch)
+    writer.add_scalar('Validate/mIoU', val_mIoU, epoch)
+    writer.add_scalar('Validate/accuracy', val_accuracy, epoch)
 
     # vizualize segmentation on several examples on test
     with torch.no_grad():
         model.eval()
         # target classes start from 1
         model_mask = model(img_to_viz.detach().to(device)).argmax(dim=1) + 1
-        # set bg pixels, they don't count
+        # set bg pixels in model's mask
         model_mask[img_target_masks == 0] = 0
     for i in tqdm(range(img_to_viz.shape[0]), desc="Vizualization...", leave=False):
         fig, ax = vizualizeSegmentation(
@@ -216,4 +217,4 @@ def logValMetrics(
         )
         ax.set_title(f"Test example {i}")
 
-        writer.add_figure(f'{param_dict["model"]["name"]}/Validate/segmentation/expl_{i}', fig, epoch)
+        writer.add_figure(f'Validate/segmentation/expl_{i}', fig, epoch)
