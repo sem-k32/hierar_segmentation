@@ -1,4 +1,4 @@
-""" tuning of the training_model_1 stage
+""" utilities for training model
 """
 import torch
 import torch.nn as nn
@@ -25,7 +25,7 @@ class myProhibitBatchDataGetter(prohibitBatchDataGetter):
         super().__init__(batch_size, final_img_size, img_ids_path, augment, prohibit_img_ids)
 
         # load params
-        with open("params_2.yaml", "r") as f:
+        with open("params.yaml", "r") as f:
             param_dict = yaml.full_load(f)
         self._lower_body_classes = param_dict["lower_body_classes"]
         self._upper_body_classes = param_dict["upper_body_classes"]
@@ -48,10 +48,12 @@ def getClassesWeights() -> torch.Tensor:
     """strategy for class weightening
     """
     # load params
-    with open("params_2.yaml", "r") as f:
+    with open("params.yaml", "r") as f:
         param_dict = yaml.full_load(f)
+    # results dirs
+    result_dir = pathlib.Path("../results")
     # load preprocess results
-    with open("results/preprocess.yaml", "r") as f:
+    with open(result_dir / "preprocess.yaml", "r") as f:
         preproc_dict = yaml.full_load(f)
     # load classes
     with open(os.environ["DATA_DIR"] + "/classes.pkl", "rb") as f:
@@ -78,10 +80,12 @@ def getClassesWeights() -> torch.Tensor:
 
 def getTrainDataLoader():
     # load params
-    with open("params_2.yaml", "r") as f:
+    with open("params.yaml", "r") as f:
         param_dict = yaml.full_load(f)
+    # results dirs
+    result_dir = pathlib.Path("../results")
     # load preprocess results
-    with open("results/preprocess.yaml", "r") as f:
+    with open(result_dir / "preprocess.yaml", "r") as f:
         preproc_dict = yaml.full_load(f)
 
     # define augmentations
@@ -116,10 +120,12 @@ def getImgsMasksToViz(num_exmpls: int) -> torch.Tensor:
 
 def getValDataLoader():
     # load params
-    with open("params_2.yaml", "r") as f:
+    with open("params.yaml", "r") as f:
         param_dict = yaml.full_load(f)
+    # results dirs
+    result_dir = pathlib.Path("../results")
     # load preprocess results
-    with open("results/preprocess.yaml", "r") as f:
+    with open(result_dir / "preprocess.yaml", "r") as f:
         preproc_dict = yaml.full_load(f)
 
     # define augmentations
@@ -143,10 +149,12 @@ def logValMetrics(
         writer: SummaryWriter
 ) -> None:
     # load params
-    with open("params_2.yaml", "r") as f:
+    with open("params.yaml", "r") as f:
         param_dict = yaml.full_load(f)
+    # results dirs
+    result_dir = pathlib.Path("../results")
     # load preprocess results
-    with open("results/preprocess.yaml", "r") as f:
+    with open(result_dir / "preprocess.yaml", "r") as f:
         preproc_dict = yaml.full_load(f)
 
     model.eval()

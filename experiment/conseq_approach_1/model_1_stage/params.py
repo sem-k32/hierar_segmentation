@@ -1,4 +1,4 @@
-""" tuning of the training_model_1 stage
+""" utilities for training model
 """
 import torch
 import torch.nn as nn
@@ -32,8 +32,10 @@ class myProhibitBatchDataGetter(prohibitBatchDataGetter):
 def getClassesWeights() -> torch.Tensor:
     """strategy for class weightening
     """
+    # results dirs
+    result_dir = pathlib.Path("../results")
     # load preprocess results
-    with open("results/preprocess.yaml", "r") as f:
+    with open(result_dir / "preprocess.yaml", "r") as f:
         preproc_dict = yaml.full_load(f)
 
     class_weights = torch.empty(2, dtype=torch.float32)
@@ -49,10 +51,12 @@ def getClassesWeights() -> torch.Tensor:
 
 def getTrainDataLoader():
     # load params
-    with open("params_1.yaml", "r") as f:
+    with open("params.yaml", "r") as f:
         param_dict = yaml.full_load(f)
+    # results dirs
+    result_dir = pathlib.Path("../results")
     # load preprocess results
-    with open("results/preprocess.yaml", "r") as f:
+    with open(result_dir / "preprocess.yaml", "r") as f:
         preproc_dict = yaml.full_load(f)
 
     # define augmentations
@@ -87,10 +91,12 @@ def getImgsToViz(num_exmpls: int) -> torch.Tensor:
 
 def getValDataLoader():
     # load params
-    with open("params_1.yaml", "r") as f:
+    with open("params.yaml", "r") as f:
         param_dict = yaml.full_load(f)
+    # results dirs
+    result_dir = pathlib.Path("../results")
     # load preprocess results
-    with open("results/preprocess.yaml", "r") as f:
+    with open(result_dir / "preprocess.yaml", "r") as f:
         preproc_dict = yaml.full_load(f)
 
     # define augmentations
@@ -113,10 +119,12 @@ def logValMetrics(
         writer: SummaryWriter
 ) -> None:
     # load params
-    with open("params_1.yaml", "r") as f:
+    with open("params.yaml", "r") as f:
         param_dict = yaml.full_load(f)
+    # results dirs
+    result_dir = pathlib.Path("../results")
     # load preprocess results
-    with open("results/preprocess.yaml", "r") as f:
+    with open(result_dir / "preprocess.yaml", "r") as f:
         preproc_dict = yaml.full_load(f)
 
     model.eval()

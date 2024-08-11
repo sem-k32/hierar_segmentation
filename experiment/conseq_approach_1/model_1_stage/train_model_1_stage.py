@@ -12,17 +12,19 @@ from tqdm import tqdm
 from datetime import datetime
 
 from src import metrics
-from experiment.conseq_approach_1.model_1 import directSegmentator
+from model import directSegmentator
 from src.data_loader import prohibitBatchDataGetter, batchDataGetter
-from params_1 import *
+from params import *
 
 
 if __name__ == "__main__":
+    # results dirs
+    result_dir = pathlib.Path("../results/")
     # load params
-    with open("params_1.yaml", "r") as f:
+    with open("params.yaml", "r") as f:
         param_dict = yaml.full_load(f)
     # load preprocess results
-    with open("results/preprocess.yaml", "r") as f:
+    with open(result_dir / "preprocess.yaml", "r") as f:
         preproc_dict = yaml.full_load(f)
 
     # device for train
@@ -62,8 +64,6 @@ if __name__ == "__main__":
     train_loader = getTrainDataLoader()
     valid_loader = getValDataLoader()
 
-    # results dirs
-    result_dir = pathlib.Path("../results/")
     # metrics writer
     writer = SummaryWriter(result_dir / f"metrics/{param_dict['model']['name']}" / f"{datetime.now()}")
     # val images to vizaulize

@@ -10,7 +10,11 @@ echo "Preprocessing stage"
 python preprocessing_stage.py
 # train model 1 stage
 echo "Train model 1 stage"
+cd model_1_stage
 python train_model_1_stage.py
+cd ..
 # train model 2 stage
 echo "Train model 2 stage"
+cd model_2_stage
 python train_model_2_stage.py
+cd ..

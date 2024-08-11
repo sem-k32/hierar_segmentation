@@ -5,13 +5,23 @@ momentum: 0.1
 grad_smooth: 0.9
 l2_pen: 1.0e-3
 
-# on this stage classes are only bg and human
+# on this stage classes are only upper body and lower_body
+# bg class is not considered
 classes:
   0: bg
-  1: human
+  1: upper_body
+  2: lower_body
+upper_body_classes:
+  - 1
+  - 2
+  - 4
+  - 6
+lower_body_classes:
+  - 3
+  - 5
 
 model:
-  name: model_1
+  name: model_2
   num_levels: 5
   num_conv_layers: 3
   kernal_size:
@@ -27,5 +37,4 @@ model:
   leaky_relu_slope: 0.05
 
 validate_period: 100
-
 viz_examples: 10
