@@ -10,7 +10,9 @@ class encoderBlock(nn.Module):
             chanels_in: int, 
             chanels_out: int,
             kernal_size: tuple[int],
-            num_conv_layers: int
+            num_conv_layers: int,
+            dropout_p: float,
+            leaky_relu_slope: float
     ) -> None:
         """increase number of channels,apply several conv+relu transforms, max pool
 
@@ -19,10 +21,6 @@ class encoderBlock(nn.Module):
             chanels_out (int): _description_
         """
         super().__init__()
-
-        # load params
-        with open("params_1.yaml", "r") as f:
-            param_dict = yaml.full_load(f)
 
         pad_size = [(conv_size_el - 1) // 2 for conv_size_el in kernal_size]
         conv_seq = []
@@ -35,7 +33,7 @@ class encoderBlock(nn.Module):
                         padding_mode="reflect"
         ))
         conv_seq.append(
-            nn.LeakyReLU(param_dict["model"]["leaky_relu_slope"])
+            nn.LeakyReLU(leaky_relu_slope)
         )
         # rest conv layers
         for _ in range(num_conv_layers - 1):
@@ -47,14 +45,14 @@ class encoderBlock(nn.Module):
                         padding_mode="reflect"
             ))
             conv_seq.append(
-                nn.LeakyReLU(param_dict["model"]["leaky_relu_slope"])
+                nn.LeakyReLU(leaky_relu_slope)
             )
         self._conv_seq = nn.Sequential(*conv_seq)
         
         POOL_SIZE = (2, 2)
         self._pooling = nn.MaxPool2d(POOL_SIZE)
 
-        self._dropout = nn.Dropout2d(param_dict["model"]["encoder_dropout_p"])
+        self._dropout = nn.Dropout2d(dropout_p)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # non-pooled feature map is used by decoder
@@ -71,7 +69,8 @@ class decoderBlock(nn.Module):
             chanels_in: int, 
             chanels_out: int,
             kernal_size: tuple[int],
-            num_conv_layers: int
+            num_conv_layers: int,
+            leaky_relu_slope: float
     ) -> None:
         """upsample feature map, apply several conv+relu transforms, decrease num of channels
 
@@ -87,7 +86,6 @@ class decoderBlock(nn.Module):
             mode="bilinear"
         )
 
-        RELU_SLOPE = 0.05
         pad_size = [(conv_size_el - 1) // 2  for conv_size_el in kernal_size]
         conv_seq = []
         # first conv layer counts encoder output
@@ -99,7 +97,7 @@ class decoderBlock(nn.Module):
                         padding_mode="zeros"
         ))
         conv_seq.append(
-            nn.LeakyReLU(RELU_SLOPE)
+            nn.LeakyReLU(leaky_relu_slope)
         )
         # middle conv layers
         for _ in range(num_conv_layers - 2):
@@ -111,7 +109,7 @@ class decoderBlock(nn.Module):
                         padding_mode="zeros"
             ))
             conv_seq.append(
-                nn.LeakyReLU(RELU_SLOPE)
+                nn.LeakyReLU(leaky_relu_slope)
             )
         # last conv layer with channels reduction
         conv_seq.append(nn.Conv2d(
@@ -122,7 +120,7 @@ class decoderBlock(nn.Module):
                         padding_mode="zeros"
         ))
         conv_seq.append(
-            nn.LeakyReLU(RELU_SLOPE)
+            nn.LeakyReLU(leaky_relu_slope)
         )
         self._conv_seq = nn.Sequential(*conv_seq)
 
@@ -141,7 +139,9 @@ class directSegmentator(nn.Module):
             num_levels: int,
             num_classes: int,
             kernal_size: tuple[int],
-            num_conv_layers: int
+            num_conv_layers: int,
+            encoder_dropout_p: float,
+            leaky_relu_slope: float
     ) -> None:
         """ implementing UNet-like architecture for direct image segmentation, without hiearcal context.
              Resolution decreases at 2 each level, num of channels is doubling with each level.
@@ -159,19 +159,22 @@ class directSegmentator(nn.Module):
         # number of channels is doubling with each level
         CHANNELS_START = 16
         # first encoder-decoder layer
-        self._encoder_list.append(encoderBlock(3, CHANNELS_START, kernal_size, num_conv_layers))
-        self._decoder_list.append(decoderBlock(CHANNELS_START, num_classes, kernal_size, num_conv_layers))
+        self._encoder_list.append(encoderBlock(3, CHANNELS_START, kernal_size, num_conv_layers, encoder_dropout_p, leaky_relu_slope))
+        self._decoder_list.append(decoderBlock(CHANNELS_START, num_classes, kernal_size, num_conv_layers, leaky_relu_slope))
         for i in range(num_levels - 1):
             self._encoder_list.append(encoderBlock(
                 CHANNELS_START * (2 ** i), 
                 CHANNELS_START * (2 ** (i + 1)), 
                 kernal_size, 
-                num_conv_layers))
+                num_conv_layers,
+                encoder_dropout_p, 
+                leaky_relu_slope))
             self._decoder_list.append(decoderBlock(
                 CHANNELS_START * (2 ** (i + 1)), 
                 CHANNELS_START * (2 ** i), 
                 kernal_size, 
-                num_conv_layers))
+                num_conv_layers,
+                leaky_relu_slope))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         encoder_outputs = []

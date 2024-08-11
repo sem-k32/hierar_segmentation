@@ -35,6 +35,8 @@ if __name__ == "__main__":
         len(param_dict["classes"]),
         param_dict["model"]["kernal_size"],
         param_dict["model"]["num_conv_layers"],
+        param_dict["model"]["encoder_dropout_p"],
+        param_dict["model"]["leaky_relu_slope"]
     )
     model.to(device)
 
