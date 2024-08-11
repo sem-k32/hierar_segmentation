@@ -1,21 +1,16 @@
 """ building hierarchal segmentation model
 """
 import torch
-import torch.nn as nn
 import numpy as np
 import pandas as pd
-from matplotlib import pyplot as plt
-import matplotlib as mpl
 import PIL.Image as Image
 import albumentations as A
 
 import yaml
 import pickle
 from tqdm import tqdm
-import functools
 import pathlib
 import os
-from datetime import datetime
 
 from src import metrics
 from src.vizualize import vizualizeSegmentation
@@ -166,6 +161,7 @@ if __name__ == "__main__":
     mIoU_up_low_body = 0.0
     mIoU_all = 0.0
 
+    # calaculate metrics over valid dataset
     for i, img_id in tqdm(enumerate(img_ids), desc="Calculating metrics on validation"):
         # read img and mask
         img = np.array(Image.open(img_dir / f"{img_id}.jpg"))
@@ -180,8 +176,6 @@ if __name__ == "__main__":
         model_mask = segmentator.Segmentate(
             torch.unsqueeze(torch.from_numpy(np.moveaxis(img, 2, 0)).to(device, torch.float32), 0) 
         ).cpu()
-
-        # calaculate metrics
 
         # body
         mIoU_body += metrics.mIoU(
@@ -247,6 +241,7 @@ if __name__ == "__main__":
     mIoU_up_low_body /= len(img_ids)
     mIoU_all /= len(img_ids)
 
+    # save metrics in table
     metrics_table = pd.DataFrame.from_dict({
         "mIoU_body": [mIoU_body],
         "mIoU_up_low_body": [mIoU_up_low_body],

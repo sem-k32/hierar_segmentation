@@ -1,5 +1,6 @@
 .git
 .venv
 *__pycache__*
-Pascal-part/*
+Pascal-part/gt_masks
+Pascal-part/JPEGImages
 .vscode
