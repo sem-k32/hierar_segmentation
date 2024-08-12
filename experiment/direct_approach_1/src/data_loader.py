@@ -13,12 +13,12 @@ def getTrainBatchLoader(batch_size: int, prohibit_images_id: list):
     """
     def batchLoader():
         # read root of the working directory
-        ws_dir = pathlib.Path(os.environ["WORKSPACE_DIR"])
+        data_dir = pathlib.Path(os.environ["DATA_DIR"])
         # model will receive such images
         MODEL_IMG_SIZE = (256, 256)
 
         # get train images id
-        with open(ws_dir / "Pascal-part/train_id.txt", "r") as f:
+        with open(data_dir / "train_id.txt", "r") as f:
             train_ids = f.readlines()
             train_ids = set(map(lambda id: id.replace("\n", ""), train_ids))
             train_ids = train_ids.difference(set(prohibit_images_id))
@@ -48,8 +48,8 @@ def getTrainBatchLoader(batch_size: int, prohibit_images_id: list):
             batch_ids = np.random.choice(train_ids, batch_size, replace=False)
             for i, img_id in enumerate(batch_ids):
                 # read img and mask
-                img = np.array(Image.open(ws_dir / f"Pascal-part/JPEGImages/{img_id}.jpg"))
-                mask = np.load(ws_dir / f"Pascal-part/gt_masks/{img_id}.npy")
+                img = np.array(Image.open(data_dir / f"JPEGImages/{img_id}.jpg"))
+                mask = np.load(data_dir / f"gt_masks/{img_id}.npy")
                 # use augmentations
                 transformed = augment(image=img, mask=mask)
                 img = transformed["image"]
@@ -73,12 +73,12 @@ class testDataIter:
 
     def __iter__(self):
          # read root of the working directory
-        self._ws_dir = pathlib.Path(os.environ["WORKSPACE_DIR"])
+        self._data_dir = pathlib.Path(os.environ["DATA_DIR"])
         # model will receive such images
         self._MODEL_IMG_SIZE = (256, 256)
 
         # get test images id
-        with open(self._ws_dir / "Pascal-part/val_id.txt", "r") as f:
+        with open(self._data_dir / "val_id.txt", "r") as f:
             self._validate_ids = f.readlines()
             self._validate_ids = list(map(lambda id: id.replace("\n", ""), self._validate_ids))
 
@@ -102,8 +102,8 @@ class testDataIter:
         for i in range(cur_batch_size):
             img_id = self._validate_ids[i]
             # read img and mask
-            img = np.array(Image.open(self._ws_dir / f"Pascal-part/JPEGImages/{img_id}.jpg")) 
-            mask = np.load(self._ws_dir / f"Pascal-part/gt_masks/{img_id}.npy")
+            img = np.array(Image.open(self._data_dir / f"JPEGImages/{img_id}.jpg")) 
+            mask = np.load(self._data_dir / f"gt_masks/{img_id}.npy")
 
             # use augmentations
             transformed = self._resize_augment(image=img, mask=mask)

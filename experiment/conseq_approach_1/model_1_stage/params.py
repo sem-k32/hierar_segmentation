@@ -10,6 +10,7 @@ import os
 import yaml
 from tqdm import tqdm
 import pathlib
+import pickle
 
 from src import metrics
 from src.data_loader import prohibitBatchDataGetter
@@ -37,6 +38,9 @@ def getClassesWeights() -> torch.Tensor:
     # load preprocess results
     with open(result_dir / "preprocess.yaml", "r") as f:
         preproc_dict = yaml.full_load(f)
+    # load params
+    with open("params.yaml", "r") as f:
+        param_dict = yaml.full_load(f)
 
     class_weights = torch.empty(len(param_dict["classes"]), dtype=torch.float32)
     

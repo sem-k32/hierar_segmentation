@@ -12,6 +12,7 @@ import yaml
 import pathlib
 import gc
 from tqdm import tqdm
+from datetime import datetime
 
 from src import metrics
 from src.model import directSegmentator
@@ -83,7 +84,7 @@ def logValidateMetrics(
         fig, ax = vizualizeSegmentation(
             np.moveaxis(imgs[i].numpy(), 0, 2).astype(np.int32),
             model_mask[i].cpu().numpy(),
-            preprocess_res["classes"]
+            param_dict["classes"]
         )
         ax.set_title(f"Test example {i}")
 
@@ -131,7 +132,7 @@ if __name__ == "__main__":
     # results dirs
     result_dir = pathlib.Path("results/")
     # metrics writer
-    writer = SummaryWriter(result_dir / "metrics/")
+    writer = SummaryWriter(result_dir / f"metrics/" / f"{datetime.now()}")
 
     # training cycle
     epoch_iter = tqdm(range(param_dict["max_epochs"]), desc="Loss: -")
