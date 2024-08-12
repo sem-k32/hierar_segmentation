@@ -114,6 +114,11 @@ def getTrainDataLoader():
     )
 
 def getImgsMasksToViz(num_exmpls: int) -> torch.Tensor:
+    """ randomly choose several val images and their masks for segmentation vizualization
+
+    Args:
+        num_exmpls (int): number of images to pick
+    """
     examples = getValDataLoader().generateBatch()
     
     return examples[0][:num_exmpls], examples[1][:num_exmpls]

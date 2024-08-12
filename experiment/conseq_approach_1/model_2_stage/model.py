@@ -1,7 +1,7 @@
+""" CV model for current segmentation task
+"""
 import torch
 import torch.nn as nn
-
-import yaml
 
 
 class encoderBlock(nn.Module):
@@ -14,11 +14,9 @@ class encoderBlock(nn.Module):
             dropout_p: float,
             leaky_relu_slope: float
     ) -> None:
-        """increase number of channels,apply several conv+relu transforms, max pool
-
-        Args:
-            chanels_in (int): _description_
-            chanels_out (int): _description_
+        """Encoder block for the UNet-like architecture.
+           Applies several conv layers, utilizes channels dropout, downsample in the end.
+           Uses layer norm for the block output.
         """
         super().__init__()
 
@@ -72,11 +70,9 @@ class decoderBlock(nn.Module):
             num_conv_layers: int,
             leaky_relu_slope: float
     ) -> None:
-        """upsample feature map, apply several conv+relu transforms, decrease num of channels
-
-        Args:
-            chanels_in (int): _description_
-            chanels_out (int): _description_
+        """Decoder block for the UNet-like architecture.
+           Applies upsampling first, then conv with the encoder output of the same level. Then several conv layers.
+           Uses layer norm for the block output
         """
         super().__init__()
 
@@ -143,15 +139,16 @@ class directSegmentator(nn.Module):
             encoder_dropout_p: float,
             leaky_relu_slope: float
     ) -> None:
-        """ implementing UNet-like architecture for direct image segmentation, without hiearcal context.
-             Resolution decreases at 2 each level, num of channels is doubling with each level.
-             Additionally decrease resolution at the start as a lot bg pixels are zeroed. Equivelently 
-              increase resolution at the end.
-             logits are output of the model
+        """ Implementing UNet-like architecture for specific classes segmentation on the image.
+            Resolution decreases at 2 each level, num of channels is doubling with each level.
+            Also maxpools image at the start and upsamples in the end. This is because input images
+                have a lot of zeroed pixels.
+            Logits are an output of the model.
 
         Args:
             num_levels (int): depth of the encoder-decoder
             num_classes (int): num of final classes
+            rest params for the encoder/decoder blocks
         """
         super().__init__()
 

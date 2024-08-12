@@ -1,3 +1,5 @@
+""" data loader classes for iteration/random batch generation of images and masks
+"""
 import PIL.Image as Image
 import numpy as np
 import PIL
@@ -18,11 +20,13 @@ class batchDataGetter:
         img_ids_path: pathlib.Path,
         augment: A.Compose
     ) -> None:
-        """ access to batched images/masks from disk with given augmentation transforms
+        """access to batched images/masks from disk with given augmentation transforms
 
         Args:
-            batch_size (int): _description_
-            data_dir (pathlib.Path): _description_
+            batch_size (int): 
+            final_img_size (tuple[int]): image size for model input
+            img_ids_path (pathlib.Path):
+            augment (A.Compose): image transformations
         """
         self.batch_size = batch_size
         self._final_img_size = final_img_size
@@ -82,6 +86,11 @@ class batchDataGetter:
 
 class prohibitBatchDataGetter(batchDataGetter):
     def __init__(self, batch_size: int, final_img_size: tuple[int], img_ids_path: pathlib.Path, augment: A.Compose, prohibit_img_ids: Optional[list] = None) -> None:
+        """ allows to exclude some images from data loader
+
+        Args:
+            prohibit_img_ids (Optional[list], optional): list of exluded image ids. Defaults to None.
+        """
         super().__init__(batch_size, final_img_size, img_ids_path, augment)
 
         # remove prohibited img ids

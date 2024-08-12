@@ -5,6 +5,14 @@ import matplotlib as mpl
 
 
 def vizualizeSegmentation(img: np.ndarray, segm_mask: np.ndarray, classes: dict):
+    """vizualize segmentation over given image, consider only given classes
+
+    Args:
+        classes (dict): classes to consider for vizualization
+
+    Returns:
+        mpl.Figure, mpl.Axes
+    """
     fig, ax = plt.subplots(figsize=(10, 6))
     ax.imshow(img)
 

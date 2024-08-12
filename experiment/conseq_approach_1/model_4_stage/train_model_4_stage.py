@@ -1,16 +1,13 @@
-""" training first segmentation model to differentiate background and human
+""" training forth segmentation model to differentiate lower body classes
 """
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
-from matplotlib import pyplot as plt
-import matplotlib as mpl
 
 from torch.utils.tensorboard import SummaryWriter
 import yaml
 import pathlib
-import gc
 from tqdm import tqdm
 from datetime import datetime
 

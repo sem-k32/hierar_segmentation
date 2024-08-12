@@ -84,10 +84,14 @@ def getTrainDataLoader():
     )
 
 def getImgsToViz(num_exmpls: int) -> torch.Tensor:
+    """ randomly choose several val images for segmentation vizualization
+
+    Args:
+        num_exmpls (int): number of images to pick
+    """
     val_loader = getValDataLoader()
     
     return val_loader.generateBatch()[0][:num_exmpls]
-
 
 def getValDataLoader():
     # load params

@@ -1,8 +1,9 @@
+""" metric computing functions for model evaluation
+"""
 import torch
 import torch.nn as nn
 import numpy as np
 
-# батчированные
 
 def mIoU(prediction: torch.Tensor, 
          target: torch.Tensor, 
@@ -10,6 +11,19 @@ def mIoU(prediction: torch.Tensor,
          device: torch.device,
          leave_bg: bool = False
 ) -> torch.Tensor:
+    """ compute mIoU metric over given classes. May not consider bg class.
+        Input must be with batch dim.
+
+    Args:
+        prediction (torch.Tensor): prediction mask
+        target (torch.Tensor): target mask
+        classes (list[int]): classes to consider for metric computation
+        device (torch.device): device of given tensors
+        leave_bg (bool, optional): wether to not consider bg class in target. Defaults to False.
+
+    Returns:
+        torch.Tensor: metric for every object in batch
+    """
     output = torch.zeros(prediction.shape[0], dtype=torch.float32).to(device)
 
     bg_mask = (target == 0)
@@ -41,6 +55,19 @@ def Accuracy(prediction: torch.Tensor,
              device: torch.device,
              leave_bg: bool = False
 ) -> torch.Tensor:
+    """ compute accuracy metric over given classes. May not consider bg class.
+        Input must be with batch dim.
+
+    Args:
+        prediction (torch.Tensor): prediction mask
+        target (torch.Tensor): target mask
+        classes (list[int]): classes to consider for metric computation
+        device (torch.device): device of given tensors
+        leave_bg (bool, optional): wether to not consider bg class in target. Defaults to False.
+
+    Returns:
+        torch.Tensor: metric for every object in batch
+    """
     if leave_bg:
         classes.remove(0)
 
@@ -53,6 +80,8 @@ def Accuracy(prediction: torch.Tensor,
 
 
 def gradNorm(model: nn.Module) -> float:
+    """ compute norm of the whole model's paramters gradient
+    """
     with torch.no_grad():
         output = 0.
         for param in model.parameters():

@@ -1,3 +1,7 @@
+""" Find all grey images in train to further exclude them in train.
+    Compute classes freqs.
+    Read main classes for segmentation from data dir.
+"""
 import PIL.Image as Image
 import numpy as np
 
@@ -8,19 +12,20 @@ import pickle
 
 
 def isGreyScale(img: np.ndarray) -> bool:
-    # make channel dim first
+    """
+        Identifies if given image is grey-tone.
+        img_dim = (h, w, c)
+
+    """
+    # move channel dim in the begining
     img = np.moveaxis(img, 2, 0)
     img[2] = img[2] - img[0]
     img[1] = img[1] - img[0]
     img[0] = img[0] - img[0]
 
     return np.all(img == 0)
-    
 
-""" find all grey images in train to remove them
-    count classes freqs
-    read main classes for segmentation
-"""
+    
 if __name__ == "__main__":
     # load classes
     with open(os.environ["DATA_DIR"] + "/classes.pkl", "rb") as f:
